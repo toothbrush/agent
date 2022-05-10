@@ -34,7 +34,14 @@ require (
 )
 
 require (
+	go.opentelemetry.io/contrib/propagators/aws v1.7.0
+	go.opentelemetry.io/contrib/propagators/b3 v1.7.0
+	go.opentelemetry.io/contrib/propagators/jaeger v1.7.0
+	go.opentelemetry.io/contrib/propagators/ot v1.7.0
 	go.opentelemetry.io/otel v1.7.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.7.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.7.0
+	go.opentelemetry.io/otel/sdk v1.7.0
 	go.opentelemetry.io/otel/trace v1.7.0
 	golang.org/x/exp v0.0.0-20220428152302-39d4317da171
 )
@@ -44,6 +51,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.0.2 // indirect
 	github.com/DataDog/sketches-go v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.5.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -51,11 +59,12 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -68,6 +77,10 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/tinylib/msgp v1.1.2 // indirect
 	go.opencensus.io v0.22.4 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.7.0 // indirect
+	go.opentelemetry.io/proto/otlp v0.16.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
