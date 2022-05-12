@@ -343,10 +343,12 @@ func TestPipelinePluginParserWithForcePull(t *testing.T) {
 steps:
   - name: ":s3: xxx"
     command: "script/buildkite/xxx.sh"
+    force_pull_plugins: true
     plugins:
-      force_pull: true
-      xxx/aws-assume-role#v0.1.0:
-        role: arn:aws:iam::xxx:role/xxx`
+      - amazon/aws-assume-role#v0.1.0:
+          role: arn:aws:iam::xxx:role/xxx
+      - paul/fancy-foo#dev-deadbeef:
+          camels: 4`
 
 	result, err := PipelineParser{Pipeline: []byte(pipeline), Env: nil}.Parse()
 	if err != nil {
@@ -359,6 +361,6 @@ steps:
 		t.Fatal(err)
 	}
 
-	expected := `{"steps":[{"name":":s3: xxx","command":"script/buildkite/xxx.sh","plugins":{"force_pull":true,"xxx/aws-assume-role#v0.1.0":{"role":"arn:aws:iam::xxx:role/xxx"}}}]}`
+	expected := `{"steps":[{"name":":s3: xxx","command":"script/buildkite/xxx.sh","force_pull_plugins":true,"plugins":[{"amazon/aws-assume-role#v0.1.0":{"role":"arn:aws:iam::xxx:role/xxx"}},{"paul/fancy-foo#dev-deadbeef":{"camels":4}}]}]}`
 	assert.Equal(t, expected, strings.TrimSpace(buf.String()))
 }
