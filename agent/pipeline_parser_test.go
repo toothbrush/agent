@@ -337,3 +337,27 @@ func TestUpsertSliceItem(t *testing.T) {
 	assert.Len(t, y, 2)
 	assert.Equal(t, y[1], yaml.MapItem{Key: "b", Value: 1})
 }
+
+func TestPipelinePluginParserWithForcePull(t *testing.T) {
+	var pipeline = `---
+steps:
+  - name: ":s3: xxx"
+    command: "script/buildkite/xxx.sh"
+    plugins:
+      xxx/aws-assume-role#v0.1.0:
+        role: arn:aws:iam::xxx:role/xxx`
+
+	result, err := PipelineParser{Pipeline: []byte(pipeline), Env: nil}.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := &bytes.Buffer{}
+	err = json.NewEncoder(buf).Encode(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `{"steps":[{"name":":s3: xxx","command":"script/buildkite/xxx.sh","plugins":{"xxx/aws-assume-role#v0.1.0":{"role":"arn:aws:iam::xxx:role/xxx"}}}]}`
+	assert.Equal(t, expected, strings.TrimSpace(buf.String()))
+}
