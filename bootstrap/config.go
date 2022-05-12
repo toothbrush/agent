@@ -89,6 +89,9 @@ type Config struct {
 	// Are plugins enabled?
 	PluginsEnabled bool
 
+	// Should we always force a pull of plugins, even if we have a local checkout?
+	PluginsForcePull bool `env:"BUILDKITE_PLUGINS_FORCE_PULL"`
+
 	// Whether to validate plugin configuration
 	PluginValidation bool
 

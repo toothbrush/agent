@@ -76,6 +76,7 @@ type BootstrapConfig struct {
 	CommandEval                  bool     `cli:"command-eval"`
 	PluginsEnabled               bool     `cli:"plugins-enabled"`
 	PluginValidation             bool     `cli:"plugin-validation"`
+	PluginsForcePull             bool     `cli:"plugins-force-pull"`
 	LocalHooksEnabled            bool     `cli:"local-hooks-enabled"`
 	PTY                          bool     `cli:"pty"`
 	Debug                        bool     `cli:"debug"`
@@ -274,6 +275,11 @@ var BootstrapCommand = cli.Command{
 			Usage:  "Validate plugin configuration",
 			EnvVar: "BUILDKITE_PLUGIN_VALIDATION",
 		},
+		cli.BoolFlag{
+			Name:   "plugins-force-pull",
+			Usage:  "Always pull plugin source, even if already present",
+			EnvVar: "BUILDKITE_PLUGINS_FORCE_PULL",
+		},
 		cli.BoolTFlag{
 			Name:   "local-hooks-enabled",
 			Usage:  "Allow local hooks to be run",
@@ -404,6 +410,7 @@ var BootstrapCommand = cli.Command{
 			PluginValidation:             cfg.PluginValidation,
 			Plugins:                      cfg.Plugins,
 			PluginsEnabled:               cfg.PluginsEnabled,
+			PluginsForcePull:             cfg.PluginsForcePull,
 			PluginsPath:                  cfg.PluginsPath,
 			PullRequest:                  cfg.PullRequest,
 			Queue:                        cfg.Queue,
