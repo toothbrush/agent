@@ -938,6 +938,11 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 	// org/plugin#v1 available, and the user wants to switch to org/plugin#v2 -- it looks to me like
 	// this code is fairly naive, and will go "there's already _some_ version of org/plugin
 	// available, so i'll just move on" instead of making sure the version is right...!
+	//
+	// Answer: nope, the pluginDirectory cannily includes the name of the tag/branch/sha.  So this
+	// will necessarily change and cause a fresh checkout to happen.  We really only need to worry
+	// about the case where a tag has been changed or we're specifically wanting remote's branch
+	// HEAD.
 	if utils.FileExists(pluginGitDirectory) {
 		// It'd be nice to show the current commit of the plugin, so
 		// let's figure that out.
