@@ -911,6 +911,12 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 	}
 	defer pluginCheckoutHook.Unlock()
 
+	// XXX(pd) 20220512: man, neither option here is nice.  Either we git-fetch and git-checkout on
+	// existing repos, which is probably fast, but then we're duplicating a bunch of machinery and
+	// perhaps missing things (like `addRepositoryHostToSSHKnownHosts`), or we DRY it up and simply
+	// rm -rf the plugin directory if it exists, but that means a potentially slow and unnecessary
+	// clone on every build step.  Sigh.
+
 	// Has it already been checked out?
 	if utils.FileExists(pluginGitDirectory) {
 		// It'd be nice to show the current commit of the plugin, so
@@ -932,7 +938,8 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 				retry.WithMaxAttempts(3),
 				retry.WithStrategy(retry.Constant(2*time.Second)),
 			).Do(func(r *retry.Retrier) error {
-				return gitFetch(b.shell, "--tags --force", pluginDirectory, p.Version)
+				// XXX Uh oh, but what about the fact that we maybe haven't yet done `addRepositoryHostToSSHKnownHosts` yet?  Can the git-fetch fail?
+				return b.shell.Run("git", "-C", pluginDirectory, "fetch", "--tags", "--force")
 			})
 			if err != nil {
 				b.shell.Errorf("Eek, there was a problem with git-fetch: %v", err)
@@ -942,7 +949,7 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 			// If the git-fetch was successful, we should be able to check out the version of the
 			// plugin we're after.
 			// TODO XXX FIXME this doesn't work yet.
-			err = gitCheckout(b.shell, "--force", p.Version)
+			err = b.shell.Run("git", "-C", pluginDirectory, "checkout", "--force", p.Version)
 			if err != nil {
 				b.shell.Errorf("Eek, there was a problem with git-checkout: %v", err)
 				return nil, err
