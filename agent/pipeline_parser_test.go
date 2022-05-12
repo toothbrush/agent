@@ -344,6 +344,7 @@ steps:
   - name: ":s3: xxx"
     command: "script/buildkite/xxx.sh"
     plugins:
+      force_pull: true
       xxx/aws-assume-role#v0.1.0:
         role: arn:aws:iam::xxx:role/xxx`
 
@@ -358,6 +359,6 @@ steps:
 		t.Fatal(err)
 	}
 
-	expected := `{"steps":[{"name":":s3: xxx","command":"script/buildkite/xxx.sh","plugins":{"xxx/aws-assume-role#v0.1.0":{"role":"arn:aws:iam::xxx:role/xxx"}}}]}`
+	expected := `{"steps":[{"name":":s3: xxx","command":"script/buildkite/xxx.sh","plugins":{"force_pull":true,"xxx/aws-assume-role#v0.1.0":{"role":"arn:aws:iam::xxx:role/xxx"}}}]}`
 	assert.Equal(t, expected, strings.TrimSpace(buf.String()))
 }
