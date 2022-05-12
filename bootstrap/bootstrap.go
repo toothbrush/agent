@@ -917,6 +917,21 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 	// rm -rf the plugin directory if it exists, but that means a potentially slow and unnecessary
 	// clone on every build step.  Sigh.
 
+	// If there is already a clone, the user may want to ensure it's fresh.
+	if b.Config.PluginsForcePull && utils.FileExists(pluginDirectory) {
+		b.shell.Commentf("BUILDKITE_PLUGINS_FORCE_PULL is true; ensuring a clean checkout of plugin %s", p.Label())
+		// It'd be great if we could do fancy footwork to use a preexisting clone of a plugin and
+		// just `git fetch && git checkout`, but it's not always that simple it would seem.  There
+		// could be a force-pushed branch, the checkout might have become dirty for whatever
+		// reason...  So for now, let's just throw away the existing checkout and rely on the
+		// existing fresh-clone behaviour below...
+		err = os.RemoveAll(pluginDirectory)
+		if err != nil {
+			b.shell.Errorf("Oh no, something went wrong deleting %s", pluginDirectory)
+			return nil, err
+		}
+	}
+
 	// Has it already been checked out?
 	if utils.FileExists(pluginGitDirectory) {
 		// It'd be nice to show the current commit of the plugin, so
@@ -926,34 +941,6 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 			b.shell.Commentf("Plugin %q already checked out (can't `git rev-parse HEAD` plugin git directory)", p.Label())
 		} else {
 			b.shell.Commentf("Plugin %q already checked out (%s)", p.Label(), strings.TrimSpace(headCommit))
-		}
-
-		// If there is already a clone, we may want to ensure it's fresh.  For a big repo, this is
-		// potentially a lot quicker than doing a fresh clone.
-		if b.Config.PluginsForcePull {
-			b.shell.Commentf("BUILDKITE_PLUGINS_FORCE_PULL is true; ensuring a clean checkout of plugin %s", p.Label())
-
-			// Do a git fetch on the plugin directory, with retries.
-			err = retry.NewRetrier(
-				retry.WithMaxAttempts(3),
-				retry.WithStrategy(retry.Constant(2*time.Second)),
-			).Do(func(r *retry.Retrier) error {
-				// XXX Uh oh, but what about the fact that we maybe haven't yet done `addRepositoryHostToSSHKnownHosts` yet?  Can the git-fetch fail?
-				return b.shell.Run("git", "-C", pluginDirectory, "fetch", "--tags", "--force")
-			})
-			if err != nil {
-				b.shell.Errorf("Eek, there was a problem with git-fetch: %v", err)
-				return nil, err
-			}
-
-			// If the git-fetch was successful, we should be able to check out the version of the
-			// plugin we're after.
-			// TODO XXX FIXME this doesn't work yet.
-			err = b.shell.Run("git", "-C", pluginDirectory, "checkout", "--force", p.Version)
-			if err != nil {
-				b.shell.Errorf("Eek, there was a problem with git-checkout: %v", err)
-				return nil, err
-			}
 		}
 
 		return checkout, nil
