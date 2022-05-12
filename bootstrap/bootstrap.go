@@ -933,6 +933,11 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 	}
 
 	// Has it already been checked out?
+	//
+	// XXX(pd) 20220512: Danger!  What if we have a long-lived Buildkite agent that has
+	// org/plugin#v1 available, and the user wants to switch to org/plugin#v2 -- it looks to me like
+	// this code is fairly naive, and will go "there's already _some_ version of org/plugin
+	// available, so i'll just move on" instead of making sure the version is right...!
 	if utils.FileExists(pluginGitDirectory) {
 		// It'd be nice to show the current commit of the plugin, so
 		// let's figure that out.
