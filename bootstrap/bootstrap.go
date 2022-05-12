@@ -930,6 +930,7 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 			b.shell.Errorf("Oh no, something went wrong deleting %s", pluginDirectory)
 			return nil, err
 		}
+		// todo mention inspiration from https://github.com/buildkite/agent/issues/422
 	}
 
 	// Has it already been checked out?
