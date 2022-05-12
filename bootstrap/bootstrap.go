@@ -911,6 +911,21 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 	}
 	defer pluginCheckoutHook.Unlock()
 
+	// If the user explicitly asks for a fresh checkout of plugins, we can simply delete any
+	// existing checkouts of the plugin, and rely on the code afterwards to perform the checkout as
+	// if from scratch.  May not be the most elegant or speedy way of doing things, but it sure is
+	// the simplest.
+	if b.Config.PluginsForcePull {
+		b.shell.Commentf("BUILDKITE_PLUGINS_FORCE_PULL is true; ensuring a clean checkout of plugin %s", p.Label())
+		if utils.FileExists(pluginDirectory) {
+			err = os.RemoveAll(pluginDirectory)
+			if err != nil {
+				b.shell.Commentf("Eek, problem deleting directory %s!", pluginDirectory)
+				return nil, err
+			}
+		}
+	}
+
 	// Has it already been checked out?
 	if utils.FileExists(pluginGitDirectory) {
 		// It'd be nice to show the current commit of the plugin, so
