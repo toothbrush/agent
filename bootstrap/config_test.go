@@ -17,6 +17,7 @@ func TestEnvVarsAreMappedToConfig(t *testing.T) {
 		GitCleanFlags:                "-v",
 		AgentName:                    "myAgent",
 		CleanCheckout:                false,
+		PluginsForcePull:             false,
 	}
 
 	environ := env.FromSlice([]string{
@@ -25,14 +26,16 @@ func TestEnvVarsAreMappedToConfig(t *testing.T) {
 		"BUILDKITE_SOMETHING_ELSE=1",
 		"BUILDKITE_REPO=https://my.mirror/repo.git",
 		"BUILDKITE_CLEAN_CHECKOUT=true",
+		"BUILDKITE_PLUGINS_FORCE_PULL=true",
 	})
 
 	changes := config.ReadFromEnvironment(environ)
 	expected := map[string]string{
-		"BUILDKITE_ARTIFACT_PATHS":  "newpath",
-		"BUILDKITE_GIT_CLONE_FLAGS": "-f",
-		"BUILDKITE_REPO":            "https://my.mirror/repo.git",
-		"BUILDKITE_CLEAN_CHECKOUT":  "true",
+		"BUILDKITE_ARTIFACT_PATHS":     "newpath",
+		"BUILDKITE_GIT_CLONE_FLAGS":    "-f",
+		"BUILDKITE_REPO":               "https://my.mirror/repo.git",
+		"BUILDKITE_CLEAN_CHECKOUT":     "true",
+		"BUILDKITE_PLUGINS_FORCE_PULL": "true",
 	}
 
 	if !reflect.DeepEqual(expected, changes) {
@@ -52,6 +55,11 @@ func TestEnvVarsAreMappedToConfig(t *testing.T) {
 	if expected := true; config.CleanCheckout != expected {
 		t.Fatalf("Expected CleanCheckout to be %v, got %v",
 			expected, config.CleanCheckout)
+	}
+
+	if expected := true; config.PluginsForcePull != expected {
+		t.Fatalf("Expected PluginsForcePull to be %v, got %v",
+			expected, config.PluginsForcePull)
 	}
 }
 
