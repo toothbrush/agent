@@ -911,21 +911,6 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 	}
 	defer pluginCheckoutHook.Unlock()
 
-	// If the user explicitly asks for a fresh checkout of plugins, we can simply delete any
-	// existing checkouts of the plugin, and rely on the code afterwards to perform the checkout as
-	// if from scratch.  May not be the most elegant or speedy way of doing things, but it sure is
-	// the simplest.
-	if b.Config.PluginsForcePull {
-		b.shell.Commentf("BUILDKITE_PLUGINS_FORCE_PULL is true; ensuring a clean checkout of plugin %s", p.Label())
-		if utils.FileExists(pluginDirectory) {
-			err = os.RemoveAll(pluginDirectory)
-			if err != nil {
-				b.shell.Commentf("Eek, problem deleting directory %s!", pluginDirectory)
-				return nil, err
-			}
-		}
-	}
-
 	// Has it already been checked out?
 	if utils.FileExists(pluginGitDirectory) {
 		// It'd be nice to show the current commit of the plugin, so
@@ -935,6 +920,33 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 			b.shell.Commentf("Plugin %q already checked out (can't `git rev-parse HEAD` plugin git directory)", p.Label())
 		} else {
 			b.shell.Commentf("Plugin %q already checked out (%s)", p.Label(), strings.TrimSpace(headCommit))
+		}
+
+		// If there is already a clone, we may want to ensure it's fresh.  For a big repo, this is
+		// potentially a lot quicker than doing a fresh clone.
+		if b.Config.PluginsForcePull {
+			b.shell.Commentf("BUILDKITE_PLUGINS_FORCE_PULL is true; ensuring a clean checkout of plugin %s", p.Label())
+
+			// Do a git fetch on the plugin directory, with retries.
+			err = retry.NewRetrier(
+				retry.WithMaxAttempts(3),
+				retry.WithStrategy(retry.Constant(2*time.Second)),
+			).Do(func(r *retry.Retrier) error {
+				return gitFetch(b.shell, "--tags --force", pluginDirectory, p.Version)
+			})
+			if err != nil {
+				b.shell.Errorf("Eek, there was a problem with git-fetch: %v", err)
+				return nil, err
+			}
+
+			// If the git-fetch was successful, we should be able to check out the version of the
+			// plugin we're after.
+			// TODO XXX FIXME this doesn't work yet.
+			err = gitCheckout(b.shell, "--force", p.Version)
+			if err != nil {
+				b.shell.Errorf("Eek, there was a problem with git-checkout: %v", err)
+				return nil, err
+			}
 		}
 
 		return checkout, nil
