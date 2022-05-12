@@ -89,6 +89,7 @@ type Config struct {
 	// Are plugins enabled?
 	PluginsEnabled bool
 
+	// todo mention inspiration https://github.com/buildkite/agent/pull/1242
 	// Should we always force a pull of plugins, even if we have a local checkout?
 	PluginsForcePull bool `env:"BUILDKITE_PLUGINS_FORCE_PULL"`
 
