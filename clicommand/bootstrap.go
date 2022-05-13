@@ -2,6 +2,7 @@ package clicommand
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
@@ -378,6 +379,7 @@ var BootstrapCommand = cli.Command{
 			l.Fatal("Failed to parse cancel-signal: %v", err)
 		}
 
+		fmt.Println("before configuring the bootstrapper")
 		// Configure the bootstraper
 		bootstrap := bootstrap.New(bootstrap.Config{
 			AgentName:                    cfg.AgentName,
@@ -423,6 +425,8 @@ var BootstrapCommand = cli.Command{
 			Tag:                          cfg.Tag,
 			TracingBackend:               cfg.TracingBackend,
 		})
+
+		fmt.Println("after configuring the bootstrapper")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

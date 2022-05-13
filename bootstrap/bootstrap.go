@@ -67,6 +67,7 @@ func New(conf Config) *Bootstrap {
 
 // Run the bootstrap and return the exit code
 func (b *Bootstrap) Run(ctx context.Context) (exitCode int) {
+	fmt.Println("Bootstrap.Run()")
 	// Check if not nil to allow for tests to overwrite shell
 	if b.shell == nil {
 		var err error
@@ -129,6 +130,8 @@ func (b *Bootstrap) Run(ctx context.Context) (exitCode int) {
 	//  Execute the bootstrap phases in order
 	var phaseErr error
 
+	b.shell.Commentf("pre-plugin: PluginsForcePull = %v\n", b.Config.PluginsForcePull)
+	b.shell.Commentf("pre-plugin: CleanCheckout = %v\n", b.Config.CleanCheckout)
 	if includePhase(`plugin`) {
 		phaseErr = b.preparePlugins()
 
@@ -136,6 +139,8 @@ func (b *Bootstrap) Run(ctx context.Context) (exitCode int) {
 			phaseErr = b.PluginPhase(ctx)
 		}
 	}
+	b.shell.Commentf("post-plugin: PluginsForcePull = %v\n", b.Config.PluginsForcePull)
+	b.shell.Commentf("            CleanCheckout = %v\n", b.Config.CleanCheckout)
 
 	if phaseErr == nil && includePhase(`checkout`) {
 		phaseErr = b.CheckoutPhase(ctx)
@@ -146,9 +151,14 @@ func (b *Bootstrap) Run(ctx context.Context) (exitCode int) {
 		}
 	}
 
+	b.shell.Commentf("post-checkout: PluginsForcePull = %v\n", b.Config.PluginsForcePull)
+	b.shell.Commentf("               CleanCheckout = %v\n", b.Config.CleanCheckout)
+
 	if phaseErr == nil && includePhase(`plugin`) {
 		phaseErr = b.VendoredPluginPhase(ctx)
 	}
+	b.shell.Commentf("post-vendored-plugin: PluginsForcePull = %v\n", b.Config.PluginsForcePull)
+	b.shell.Commentf("                      CleanCheckout = %v\n", b.Config.CleanCheckout)
 
 	if phaseErr == nil && includePhase(`command`) {
 		var commandErr error
@@ -192,6 +202,8 @@ func (b *Bootstrap) Run(ctx context.Context) (exitCode int) {
 			}
 		}
 	}
+	b.shell.Commentf("post-command: PluginsForcePull = %v\n", b.Config.PluginsForcePull)
+	b.shell.Commentf("              CleanCheckout = %v\n", b.Config.CleanCheckout)
 
 	// Phase errors are where something of ours broke that merits a big red error
 	// this won't include command failures, as we view that as more in the user space
@@ -768,6 +780,7 @@ func (b *Bootstrap) PluginPhase(ctx context.Context) error {
 			continue
 		}
 
+		b.shell.Commentf("PluginsForcePull = %v\n", b.Config.PluginsForcePull)
 		checkout, err := b.checkoutPlugin(p)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to checkout plugin %s", p.Name())
@@ -900,6 +913,7 @@ func (b *Bootstrap) checkoutPlugin(p *plugin.Plugin) (*pluginCheckout, error) {
 		Plugin:      p,
 		CheckoutDir: pluginDirectory,
 		HooksDir:    filepath.Join(pluginDirectory, "hooks"),
+		// ForcePull:   true,
 	}
 
 	// Try and lock this particular plugin while we check it out (we create
@@ -1985,4 +1999,5 @@ type pluginCheckout struct {
 	*plugin.Definition
 	CheckoutDir string
 	HooksDir    string
+	// ForcePull   bool
 }

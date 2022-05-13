@@ -167,11 +167,14 @@ func UnsetConfigFromEnvironment(c *cli.Context) error {
 	flags := append(c.App.Flags, c.Command.Flags...)
 	for _, fl := range flags {
 		// use golang reflection to find EnvVar values on flags
+		fmt.Printf("flag -> %v\n", fl.String())
 		r := reflect.ValueOf(fl)
 		f := reflect.Indirect(r).FieldByName(`EnvVar`)
 		if !f.IsValid() {
 			return errors.New("EnvVar field not found on flag")
 		}
+
+		fmt.Printf("field -> %v\n", f.String())
 		// split comma delimited env
 		if envVars := f.String(); envVars != `` {
 			for _, env := range strings.Split(envVars, ",") {
