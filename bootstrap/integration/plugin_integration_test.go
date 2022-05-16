@@ -381,6 +381,114 @@ func TestModifiedPlugin(t *testing.T) {
 	tester2.RunAndCheck(t, env...)
 }
 
+func TestModifiedPluginWithForcePull(t *testing.T) {
+	// Let's set a fixed location for plugins, otherwise it'll be a random new tempdir every time
+	// which defeats our test.
+	pluginsDir, err := ioutil.TempDir("", "bootstrap-plugins")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tester, err := NewBootstrapTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tester.Close()
+	tester.PluginsDir = pluginsDir
+
+	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	filteredEnv := []string{}
+	for _, val := range tester.Env {
+		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
+			filteredEnv = append(filteredEnv, val)
+		}
+	}
+	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
+	tester.Env = filteredEnv
+
+	var p *testPlugin
+	if runtime.GOOS == "windows" {
+		p = createTestPlugin(t, map[string][]string{
+			"environment.bat": {
+				"@echo off",
+				"set OSTRICH_EGGS=quite_large",
+			},
+		})
+	} else {
+		p = createTestPlugin(t, map[string][]string{
+			"environment": {
+				"#!/bin/bash",
+				"export OSTRICH_EGGS=quite_large",
+			},
+		})
+	}
+
+	json, err := p.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	env := []string{
+		`BUILDKITE_PLUGINS=` + json,
+	}
+
+	tester.ExpectGlobalHook("command").Once().AndExitWith(0).AndCallFunc(func(c *bintest.Call) {
+		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=quite_large`); err != nil {
+			fmt.Fprintf(c.Stderr, "%v\n", err)
+			c.Exit(1)
+		} else {
+			c.Exit(0)
+		}
+	})
+
+	tester.RunAndCheck(t, env...)
+
+	tester2, err := NewBootstrapTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tester2.Close()
+	tester2.PluginsDir = pluginsDir
+
+	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	filteredEnv = []string{}
+	for _, val := range tester2.Env {
+		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
+			filteredEnv = append(filteredEnv, val)
+		}
+	}
+	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
+	tester2.Env = filteredEnv
+	tester2.Env = append(tester2.Env, "BUILDKITE_PLUGINS_FORCE_PULL=true")
+
+	if runtime.GOOS == "windows" {
+		modifyTestPlugin(t, map[string][]string{
+			"environment.bat": {
+				"@echo off",
+				"set OSTRICH_EGGS=huge_actually",
+			},
+		}, p)
+	} else {
+		modifyTestPlugin(t, map[string][]string{
+			"environment": {
+				"#!/bin/bash",
+				"export OSTRICH_EGGS=huge_actually",
+			},
+		}, p)
+	}
+
+	tester2.ExpectGlobalHook("command").Once().AndExitWith(0).AndCallFunc(func(c *bintest.Call) {
+		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=huge_actually`); err != nil {
+			fmt.Fprintf(c.Stderr, "%v\n", err)
+			c.Exit(1)
+		} else {
+			c.Exit(0)
+		}
+	})
+
+	tester2.RunAndCheck(t, env...)
+}
+
 type testPlugin struct {
 	*gitRepository
 }
