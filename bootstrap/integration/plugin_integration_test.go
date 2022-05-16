@@ -274,6 +274,51 @@ func TestPluginCloneRetried(t *testing.T) {
 	tester.RunAndCheck(t, env...)
 }
 
+func TestForcePulledPlugin(t *testing.T) {
+	tester, err := NewBootstrapTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tester.Close()
+
+	var p *testPlugin
+	if runtime.GOOS == "windows" {
+		p = createTestPlugin(t, map[string][]string{
+			"environment.bat": []string{
+				"@echo off",
+				"set OSTRICH_EGGS=quite_large",
+			},
+		})
+	} else {
+		p = createTestPlugin(t, map[string][]string{
+			"environment": []string{
+				"#!/bin/bash",
+				"export OSTRICH_EGGS=quite_large",
+			},
+		})
+	}
+
+	json, err := p.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	env := []string{
+		`BUILDKITE_PLUGINS=` + json,
+	}
+
+	tester.ExpectGlobalHook("command").Once().AndExitWith(0).AndCallFunc(func(c *bintest.Call) {
+		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=quite_large`); err != nil {
+			fmt.Fprintf(c.Stderr, "%v\n", err)
+			c.Exit(1)
+		} else {
+			c.Exit(0)
+		}
+	})
+
+	tester.RunAndCheck(t, env...)
+}
+
 type testPlugin struct {
 	*gitRepository
 }
