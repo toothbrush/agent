@@ -370,7 +370,7 @@ func TestModifiedPlugin(t *testing.T) {
 	}
 
 	tester2.ExpectGlobalHook("command").Once().AndExitWith(0).AndCallFunc(func(c *bintest.Call) {
-		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=huge_actually`); err != nil {
+		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=quite_large`); err != nil {
 			fmt.Fprintf(c.Stderr, "%v\n", err)
 			c.Exit(1)
 		} else {
