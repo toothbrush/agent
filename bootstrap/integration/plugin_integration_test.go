@@ -274,12 +274,30 @@ func TestPluginCloneRetried(t *testing.T) {
 	tester.RunAndCheck(t, env...)
 }
 
-func TestForcePulledPlugin(t *testing.T) {
+func TestModifiedPlugin(t *testing.T) {
+	// Let's set a fixed location for plugins, otherwise it'll be a random new tempdir every time
+	// which defeats our test.
+	pluginsDir, err := ioutil.TempDir("", "bootstrap-plugins")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tester, err := NewBootstrapTester()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer tester.Close()
+	tester.PluginsDir = pluginsDir
+
+	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	filteredEnv := []string{}
+	for _, val := range tester.Env {
+		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
+			filteredEnv = append(filteredEnv, val)
+		}
+	}
+	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
+	tester.Env = filteredEnv
 
 	var p *testPlugin
 	if runtime.GOOS == "windows" {
@@ -317,6 +335,50 @@ func TestForcePulledPlugin(t *testing.T) {
 	})
 
 	tester.RunAndCheck(t, env...)
+
+	tester2, err := NewBootstrapTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tester2.Close()
+	tester2.PluginsDir = pluginsDir
+
+	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	filteredEnv = []string{}
+	for _, val := range tester2.Env {
+		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
+			filteredEnv = append(filteredEnv, val)
+		}
+	}
+	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
+	tester2.Env = filteredEnv
+
+	if runtime.GOOS == "windows" {
+		modifyTestPlugin(t, map[string][]string{
+			"environment.bat": []string{
+				"@echo off",
+				"set OSTRICH_EGGS=huge_actually",
+			},
+		}, p)
+	} else {
+		modifyTestPlugin(t, map[string][]string{
+			"environment": []string{
+				"#!/bin/bash",
+				"export OSTRICH_EGGS=huge_actually",
+			},
+		}, p)
+	}
+
+	tester2.ExpectGlobalHook("command").Once().AndExitWith(0).AndCallFunc(func(c *bintest.Call) {
+		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=huge_actually`); err != nil {
+			fmt.Fprintf(c.Stderr, "%v\n", err)
+			c.Exit(1)
+		} else {
+			c.Exit(0)
+		}
+	})
+
+	tester2.RunAndCheck(t, env...)
 }
 
 type testPlugin struct {
@@ -340,6 +402,9 @@ func createTestPlugin(t *testing.T, hooks map[string][]string) *testPlugin {
 		}
 	}
 
+	// TODO talk about this
+	repo.CreateBranch("dev-plugin")
+
 	if err = repo.Add("."); err != nil {
 		t.Fatal(err)
 	}
@@ -349,6 +414,25 @@ func createTestPlugin(t *testing.T, hooks map[string][]string) *testPlugin {
 	}
 
 	return &testPlugin{repo}
+}
+
+func modifyTestPlugin(t *testing.T, hooks map[string][]string, testPlugin *testPlugin) {
+	repo := testPlugin.gitRepository
+
+	for hook, lines := range hooks {
+		data := []byte(strings.Join(lines, "\n"))
+		if err := ioutil.WriteFile(filepath.Join(repo.Path, "hooks", hook), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := repo.Add("."); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := repo.Commit("Updating content of plugin"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // ToJSON turns a single testPlugin into a single-item JSON
@@ -366,6 +450,7 @@ func (tp *testPlugin) ToJSON() (string, error) {
 // generally be used on a []testPlugin slice.
 func (tp *testPlugin) MarshalJSON() ([]byte, error) {
 	commitHash, err := tp.RevParse("HEAD")
+	commitHash = "dev-plugin"
 	if err != nil {
 		return nil, err
 	}
