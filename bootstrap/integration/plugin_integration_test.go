@@ -449,17 +449,9 @@ func TestModifiedPluginWithForcePull(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tester2.Close()
-	tester2.PluginsDir = pluginsDir
 
-	filteredEnv = []string{}
-	for _, val := range tester2.Env {
-		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
-			filteredEnv = append(filteredEnv, val)
-		}
-	}
-	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
-	tester2.Env = filteredEnv
-	tester2.Env = append(tester2.Env, "BUILDKITE_PLUGINS_FORCE_PULL=true")
+	tester2.PluginsDir = pluginsDir
+	tester2.Env = replacePluginPathInEnv(tester2.Env, pluginsDir)
 
 	if runtime.GOOS == "windows" {
 		modifyTestPlugin(t, map[string][]string{
