@@ -282,7 +282,7 @@ func TestPluginCloneRetried(t *testing.T) {
 // agent to always make a fresh clone of any plugins.  This integration test and the one after test
 // that a plugin modified upstream is treated as expected.  That is, by default, the updates won't
 // take effect, but with BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH set, they will.
-func TestModifiedPlugin(t *testing.T) {
+func TestModifiedPluginNoForcePull(t *testing.T) {
 	// Let's set a fixed location for plugins, otherwise NewBootstrapTester() gives us a random new
 	// tempdir every time, which defeats our test.
 	pluginsDir, err := ioutil.TempDir("", "bootstrap-plugins")
