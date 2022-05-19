@@ -386,6 +386,12 @@ func TestModifiedPluginNoForcePull(t *testing.T) {
 // after modifying a plugin's source, but this time with BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH set to
 // true.  So, we expect the upstream plugin changes to take effect on our second build.
 func TestModifiedPluginWithForcePull(t *testing.T) {
+	tester, err := NewBootstrapTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tester.Close()
+
 	// Let's set a fixed location for plugins, otherwise it'll be a random new tempdir every time
 	// which defeats our test.
 	pluginsDir, err := ioutil.TempDir("", "bootstrap-plugins")
@@ -393,22 +399,9 @@ func TestModifiedPluginWithForcePull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tester, err := NewBootstrapTester()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tester.Close()
 	tester.PluginsDir = pluginsDir
-
 	// Same resetting code for BUILDKITE_PLUGINS_PATH as in the previous test
-	filteredEnv := []string{}
-	for _, val := range tester.Env {
-		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
-			filteredEnv = append(filteredEnv, val)
-		}
-	}
-	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
-	tester.Env = filteredEnv
+	tester.Env = replacePluginPathInEnv(tester.Env, pluginsDir)
 
 	var p *testPlugin
 	if runtime.GOOS == "windows" {
