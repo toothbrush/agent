@@ -283,30 +283,23 @@ func TestPluginCloneRetried(t *testing.T) {
 // that a plugin modified upstream is treated as expected.  That is, by default, the updates won't
 // take effect, but with BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH set, they will.
 func TestModifiedPluginNoForcePull(t *testing.T) {
+	tester, err := NewBootstrapTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tester.Close()
+
 	// Let's set a fixed location for plugins, otherwise NewBootstrapTester() gives us a random new
 	// tempdir every time, which defeats our test.
 	pluginsDir, err := ioutil.TempDir("", "bootstrap-plugins")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	tester, err := NewBootstrapTester()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tester.Close()
 	tester.PluginsDir = pluginsDir
 
 	// There's a bit of machinery here to modify only the BUILDKITE_PLUGINS_PATH, leaving the rest
 	// of the environment variables NewBootstrapTester() gave us as-is.
-	filteredEnv := []string{}
-	for _, val := range tester.Env {
-		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
-			filteredEnv = append(filteredEnv, val)
-		}
-	}
-	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
-	tester.Env = filteredEnv
+	tester.Env = replacePluginPathInEnv(tester.Env, pluginsDir)
 
 	// Create a test plugin that sets an environment variable.
 	var p *testPlugin
@@ -325,6 +318,7 @@ func TestModifiedPluginNoForcePull(t *testing.T) {
 			},
 		})
 	}
+
 	// TODO talk about this
 	p.gitRepository.CreateBranch("something-fixed")
 	p.versionTag = "something-fixed"
@@ -355,17 +349,10 @@ func TestModifiedPluginNoForcePull(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tester2.Close()
-	tester2.PluginsDir = pluginsDir
 
 	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
-	filteredEnv = []string{}
-	for _, val := range tester2.Env {
-		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
-			filteredEnv = append(filteredEnv, val)
-		}
-	}
-	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
-	tester2.Env = filteredEnv
+	tester2.PluginsDir = pluginsDir
+	tester2.Env = replacePluginPathInEnv(tester2.Env, pluginsDir)
 
 	if runtime.GOOS == "windows" {
 		modifyTestPlugin(t, map[string][]string{
@@ -595,4 +582,16 @@ func (tp *testPlugin) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+func replacePluginPathInEnv(originalEnv []string, pluginsDir string) (newEnv []string) {
+	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	newEnv = []string{}
+	for _, val := range originalEnv {
+		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
+			newEnv = append(newEnv, val)
+		}
+	}
+	newEnv = append(newEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
+	return newEnv
 }
