@@ -274,9 +274,17 @@ func TestPluginCloneRetried(t *testing.T) {
 	tester.RunAndCheck(t, env...)
 }
 
+// We want to support the situation where a user wants a plugin from a particular Git branch, e.g.,
+// org/repo#my-dev-feature.  By default, if the Buildkite agent finds a plugin Git clone that
+// matches the org, repo and ref, it will not try to pull or update it in any way, meaning that if
+// the ref is a branch, and upstream has new commits, they will not get pulled in.  For that, we're
+// introducing the BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH setting, which allows a user to force the
+// agent to always make a fresh clone of any plugins.  This integration test and the one after test
+// that a plugin modified upstream is treated as expected.  That is, by default, the updates won't
+// take effect, but with BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH set, they will.
 func TestModifiedPlugin(t *testing.T) {
-	// Let's set a fixed location for plugins, otherwise it'll be a random new tempdir every time
-	// which defeats our test.
+	// Let's set a fixed location for plugins, otherwise NewBootstrapTester() gives us a random new
+	// tempdir every time, which defeats our test.
 	pluginsDir, err := ioutil.TempDir("", "bootstrap-plugins")
 	if err != nil {
 		t.Fatal(err)
@@ -289,7 +297,8 @@ func TestModifiedPlugin(t *testing.T) {
 	defer tester.Close()
 	tester.PluginsDir = pluginsDir
 
-	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	// There's a bit of machinery here to modify only the BUILDKITE_PLUGINS_PATH, leaving the rest
+	// of the environment variables NewBootstrapTester() gave us as-is.
 	filteredEnv := []string{}
 	for _, val := range tester.Env {
 		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
@@ -299,6 +308,7 @@ func TestModifiedPlugin(t *testing.T) {
 	filteredEnv = append(filteredEnv, "BUILDKITE_PLUGINS_PATH="+pluginsDir)
 	tester.Env = filteredEnv
 
+	// Create a test plugin that sets an environment variable.
 	var p *testPlugin
 	if runtime.GOOS == "windows" {
 		p = createTestPlugin(t, map[string][]string{
@@ -336,6 +346,7 @@ func TestModifiedPlugin(t *testing.T) {
 
 	tester.RunAndCheck(t, env...)
 
+	// Now, we want to "repeat" the test build, having modified the plugin's contents.
 	tester2, err := NewBootstrapTester()
 	if err != nil {
 		t.Fatal(err)
@@ -381,6 +392,9 @@ func TestModifiedPlugin(t *testing.T) {
 	tester2.RunAndCheck(t, env...)
 }
 
+// As described above the previous integration test, this time we want to build both before and
+// after modifying a plugin's source, but this time with BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH set to
+// true.  So, we expect the upstream plugin changes to take effect on our second build.
 func TestModifiedPluginWithForcePull(t *testing.T) {
 	// Let's set a fixed location for plugins, otherwise it'll be a random new tempdir every time
 	// which defeats our test.
@@ -396,7 +410,7 @@ func TestModifiedPluginWithForcePull(t *testing.T) {
 	defer tester.Close()
 	tester.PluginsDir = pluginsDir
 
-	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
+	// Same resetting code for BUILDKITE_PLUGINS_PATH as in the previous test
 	filteredEnv := []string{}
 	for _, val := range tester.Env {
 		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
@@ -450,7 +464,6 @@ func TestModifiedPluginWithForcePull(t *testing.T) {
 	defer tester2.Close()
 	tester2.PluginsDir = pluginsDir
 
-	// Okay aargh i need to modify BUILDKITE_PLUGINS_PATH... but i don't want to duplicate heaps of code from bootstrap_tester.go.
 	filteredEnv = []string{}
 	for _, val := range tester2.Env {
 		if !strings.HasPrefix(val, "BUILDKITE_PLUGINS_PATH=") {
@@ -477,6 +490,8 @@ func TestModifiedPluginWithForcePull(t *testing.T) {
 		}, p)
 	}
 
+	// This time, we expect the value of OSTRICH_EGGS to have changed compared to the first test
+	// run.
 	tester2.ExpectGlobalHook("command").Once().AndExitWith(0).AndCallFunc(func(c *bintest.Call) {
 		if err := bintest.ExpectEnv(t, c.Env, `OSTRICH_EGGS=huge_actually`); err != nil {
 			fmt.Fprintf(c.Stderr, "%v\n", err)
