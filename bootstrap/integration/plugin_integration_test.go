@@ -453,6 +453,7 @@ func TestModifiedPluginWithForcePull(t *testing.T) {
 	tester2.PluginsDir = pluginsDir
 	tester2.Env = replacePluginPathInEnv(tester2.Env, pluginsDir)
 	tester2.Env = append(tester2.Env, "BUILDKITE_PLUGINS_ALWAYS_CLONE_FRESH=true")
+	tester2.Env = append(tester2.Env, "BUILDKITE_PLUGINS_FORCE_PULL=true")
 
 	if runtime.GOOS == "windows" {
 		modifyTestPlugin(t, map[string][]string{
