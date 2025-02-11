@@ -8,14 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/kms"
-	"github.com/buildkite/agent/v3/internal/awslib"
 	"github.com/buildkite/agent/v3/internal/bkgql"
-	awssigner "github.com/buildkite/agent/v3/internal/cryptosigner/aws"
 	"github.com/buildkite/agent/v3/internal/stdin"
 	"github.com/buildkite/agent/v3/logger"
 	"github.com/buildkite/go-pipeline"
-	"github.com/buildkite/go-pipeline/jwkutil"
 	"github.com/buildkite/go-pipeline/signature"
 	"github.com/buildkite/go-pipeline/warning"
 	"github.com/urfave/cli"
@@ -29,13 +25,6 @@ type ToolUnSignConfig struct {
 	GraphQLToken string `cli:"graphql-token"`
 	Update       bool   `cli:"update"`
 	NoConfirm    bool   `cli:"no-confirm"`
-
-	// Used for signing
-	JWKSFile  string `cli:"jwks-file"`
-	JWKSKeyID string `cli:"jwks-key-id"`
-
-	// AWS KMS key used for signing pipelines
-	AWSKMSKeyID string `cli:"signing-aws-kms-key"`
 
 	// Enable debug logging for pipeline signing, this depends on debug logging also being enabled
 	DebugSigning bool `cli:"debug-signing"`
@@ -82,21 +71,6 @@ Description:  FOO`,
 		},
 
 		// Used for signing
-		cli.StringFlag{
-			Name:   "jwks-file",
-			Usage:  "Path to a file containing a JWKS.",
-			EnvVar: "BUILDKITE_AGENT_JWKS_FILE",
-		},
-		cli.StringFlag{
-			Name:   "jwks-key-id",
-			Usage:  "The JWKS key ID to use when signing the pipeline. If none is provided and the JWKS file contains only one key, that key will be used.",
-			EnvVar: "BUILDKITE_AGENT_JWKS_KEY_ID",
-		},
-		cli.StringFlag{
-			Name:   "signing-aws-kms-key",
-			Usage:  "The AWS KMS key identifier which is used to sign pipelines.",
-			EnvVar: "BUILDKITE_AGENT_AWS_KMS_KEY",
-		},
 		cli.BoolFlag{
 			Name:   "debug-signing",
 			Usage:  "Enable debug logging for pipeline signing. This can potentially leak secrets to the logs as it prints each step in full before signing. Requires debug logging to be enabled",
@@ -137,7 +111,7 @@ Description:  FOO`,
 	},
 
 	Action: func(c *cli.Context) error {
-		ctx, cfg, l, _, done := setupLoggerAndConfig[ToolSignConfig](context.Background(), c)
+		ctx, cfg, l, _, done := setupLoggerAndConfig[ToolUnSignConfig](context.Background(), c)
 		defer done()
 
 		var (
@@ -145,43 +119,21 @@ Description:  FOO`,
 			err error
 		)
 
-		switch {
-		case cfg.AWSKMSKeyID != "":
-			// load the AWS SDK V2 config
-			awscfg, err := awslib.GetConfigV2(ctx)
-			if err != nil {
-				return err
-			}
-
-			// assign a crypto signer which uses the KMS key to sign the pipeline
-			key, err = awssigner.NewKMS(kms.NewFromConfig(awscfg), cfg.AWSKMSKeyID)
-			if err != nil {
-				return fmt.Errorf("couldn't create KMS signer: %w", err)
-			}
-
-		default:
-			key, err = jwkutil.LoadKey(cfg.JWKSFile, cfg.JWKSKeyID)
-			if err != nil {
-				return fmt.Errorf("couldn't read the signing key file: %w", err)
-			}
-
-		}
-
-		sign := unsignWithGraphQL
+		unsign := unsignWithGraphQL
 		if cfg.GraphQLToken == "" {
-			sign = unsignOffline
+			unsign = unsignOffline
 		}
 
-		err = sign(ctx, c, l, key, &cfg)
+		err = unsign(ctx, c, l, key, &cfg)
 		if err != nil {
-			return fmt.Errorf("Error signing pipeline: %w", err)
+			return fmt.Errorf("Error unsigning pipeline: %w", err)
 		}
 
 		return nil
 	},
 }
 
-func unsignOffline(ctx context.Context, c *cli.Context, l logger.Logger, key signature.Key, cfg *ToolSignConfig) error {
+func unsignOffline(ctx context.Context, c *cli.Context, l logger.Logger, key signature.Key, cfg *ToolUnSignConfig) error {
 	if cfg.Repository == "" {
 		return ErrUseGraphQL
 	}
@@ -243,7 +195,7 @@ func unsignOffline(ctx context.Context, c *cli.Context, l logger.Logger, key sig
 		l.Debug("Pipeline parsed successfully:\n%v", parsedPipeline)
 	}
 
-	err = SignSteps(
+	err = UnSignSteps(
 		ctx,
 		parsedPipeline.Steps,
 		key,
@@ -253,7 +205,7 @@ func unsignOffline(ctx context.Context, c *cli.Context, l logger.Logger, key sig
 		signature.WithDebugSigning(cfg.DebugSigning),
 	)
 	if err != nil {
-		return fmt.Errorf("couldn't sign pipeline: %w", err)
+		return fmt.Errorf("couldn't unsign pipeline: %w", err)
 	}
 
 	enc := yaml.NewEncoder(c.App.Writer)
@@ -261,7 +213,7 @@ func unsignOffline(ctx context.Context, c *cli.Context, l logger.Logger, key sig
 	return enc.Encode(parsedPipeline)
 }
 
-func unsignWithGraphQL(ctx context.Context, c *cli.Context, l logger.Logger, key signature.Key, cfg *ToolSignConfig) error {
+func unsignWithGraphQL(ctx context.Context, c *cli.Context, l logger.Logger, key signature.Key, cfg *ToolUnSignConfig) error {
 	orgPipelineSlug := fmt.Sprintf("%s/%s", cfg.OrganizationSlug, cfg.PipelineSlug)
 	debugL := l.WithFields(logger.StringField("orgPipelineSlug", orgPipelineSlug))
 
@@ -309,8 +261,8 @@ func unsignWithGraphQL(ctx context.Context, c *cli.Context, l logger.Logger, key
 		debugL.Debug("Pipeline parsed successfully: %v", parsedPipeline)
 	}
 
-	if err := SignSteps(ctx, parsedPipeline.Steps, key, resp.Pipeline.Repository.Url, signature.WithEnv(parsedPipeline.Env.ToMap()), signature.WithLogger(debugL), signature.WithDebugSigning(cfg.DebugSigning)); err != nil {
-		return fmt.Errorf("couldn't sign pipeline: %w", err)
+	if err := UnSignSteps(ctx, parsedPipeline.Steps, key, resp.Pipeline.Repository.Url, signature.WithEnv(parsedPipeline.Env.ToMap()), signature.WithLogger(debugL), signature.WithDebugSigning(cfg.DebugSigning)); err != nil {
+		return fmt.Errorf("couldn't unsign pipeline: %w", err)
 	}
 
 	if !cfg.Update {
@@ -329,7 +281,7 @@ func unsignWithGraphQL(ctx context.Context, c *cli.Context, l logger.Logger, key
 	signedPipelineYaml := strings.TrimSpace(signedPipelineYamlBuilder.String())
 	l.Info("Replacing pipeline with signed version:\n%s", signedPipelineYaml)
 
-	updatePipeline, err := promptConfirm(
+	updatePipeline, err := promptConfirmUnsign(
 		c, cfg, "\n\x1b[1mAre you sure you want to update the pipeline? This may break your builds!\x1b[0m",
 	)
 	if err != nil {
@@ -348,5 +300,52 @@ func unsignWithGraphQL(ctx context.Context, c *cli.Context, l logger.Logger, key
 
 	l.Info("Pipeline updated successfully")
 
+	return nil
+}
+
+func promptConfirmUnsign(c *cli.Context, cfg *ToolUnSignConfig, message string) (bool, error) {
+	if cfg.NoConfirm {
+		return true, nil
+	}
+
+	if _, err := fmt.Fprintf(c.App.Writer, "%s [y/N]: ", message); err != nil {
+		return false, err
+	}
+
+	var input string
+	if _, err := fmt.Fscanln(os.Stdin, &input); err != nil {
+		return false, err
+	}
+	input = strings.ToLower(input)
+
+	switch input {
+	case "y", "yes":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func UnSignSteps(ctx context.Context, s pipeline.Steps, key signature.Key, repoURL string, opts ...signature.Option) error {
+	for _, step := range s {
+		switch step := step.(type) {
+		case *pipeline.CommandStep:
+
+			step.Signature = nil
+
+		case *pipeline.GroupStep:
+			if err := UnSignSteps(ctx, step.Steps, key, repoURL, opts...); err != nil {
+				return fmt.Errorf("unsigning group step: %w", err)
+			}
+
+		case *pipeline.UnknownStep:
+			// Presence of an unknown step means we're missing some semantic
+			// information about the pipeline. We could be not signing something
+			// that needs signing. Rather than deferring the problem (so that
+			// signature verification fails when an agent runs jobs) we return
+			// an error now.
+			return errSigningRefusedUnknownStepType
+		}
+	}
 	return nil
 }
