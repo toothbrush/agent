@@ -464,7 +464,7 @@ func SignSteps(ctx context.Context, s pipeline.Steps, key signature.Key, repoURL
 			step.Signature = sig
 
 		case *pipeline.GroupStep:
-			if err := signature.SignSteps(ctx, step.Steps, key, repoURL, opts...); err != nil {
+			if err := SignSteps(ctx, step.Steps, key, repoURL, opts...); err != nil {
 				return fmt.Errorf("signing group step: %w", err)
 			}
 
