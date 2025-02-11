@@ -305,7 +305,7 @@ func signOffline(ctx context.Context, c *cli.Context, l logger.Logger, key signa
 		l.Debug("Pipeline parsed successfully:\n%v", parsedPipeline)
 	}
 
-	err = signature.SignSteps(
+	err = SignSteps(
 		ctx,
 		parsedPipeline.Steps,
 		key,
@@ -371,7 +371,7 @@ func signWithGraphQL(ctx context.Context, c *cli.Context, l logger.Logger, key s
 		debugL.Debug("Pipeline parsed successfully: %v", parsedPipeline)
 	}
 
-	if err := signature.SignSteps(ctx, parsedPipeline.Steps, key, resp.Pipeline.Repository.Url, signature.WithEnv(parsedPipeline.Env.ToMap()), signature.WithLogger(debugL), signature.WithDebugSigning(cfg.DebugSigning)); err != nil {
+	if err := SignSteps(ctx, parsedPipeline.Steps, key, resp.Pipeline.Repository.Url, signature.WithEnv(parsedPipeline.Env.ToMap()), signature.WithLogger(debugL), signature.WithDebugSigning(cfg.DebugSigning)); err != nil {
 		return fmt.Errorf("couldn't sign pipeline: %w", err)
 	}
 
@@ -434,4 +434,48 @@ func promptConfirm(c *cli.Context, cfg *ToolSignConfig, message string) (bool, e
 	default:
 		return false, nil
 	}
+}
+
+var errSigningRefusedUnknownStepType = errors.New("refusing to sign pipeline containing a step of unknown type, because the pipeline could be incorrectly parsed - please contact support")
+
+// XXX(pd) 20250212: Vendored this in for modification, from /Users/pauldavid/go/pkg/mod/github.com/buildkite/go-pipeline@v0.13.3/signature/steps.go
+
+// SignSteps adds signatures to each command step (and recursively to any command steps that are within group steps).
+// The steps are mutated directly, so an error part-way through may leave some steps un-signed.
+func SignSteps(ctx context.Context, s pipeline.Steps, key signature.Key, repoURL string, opts ...signature.Option) error {
+	for _, step := range s {
+		switch step := step.(type) {
+		case *pipeline.CommandStep:
+			stepWithInvariants := &signature.CommandStepWithInvariants{
+				CommandStep:   *step,
+				RepositoryURL: repoURL,
+			}
+
+			fmt.Printf("stepWithInvariants.CommandStep.Command: %v\n", stepWithInvariants.CommandStep.Command)
+
+			step.Command = strings.ReplaceAll(step.Command, "buildkite-signed-pipeline", "buildkite-agent pipeline")
+
+			fmt.Printf("stepWithInvariants.CommandStep.Command: %v\n", stepWithInvariants.CommandStep.Command)
+
+			sig, err := signature.Sign(ctx, key, stepWithInvariants, opts...)
+			if err != nil {
+				return fmt.Errorf("signing step with command %q: %w", step.Command, err)
+			}
+			step.Signature = sig
+
+		case *pipeline.GroupStep:
+			if err := signature.SignSteps(ctx, step.Steps, key, repoURL, opts...); err != nil {
+				return fmt.Errorf("signing group step: %w", err)
+			}
+
+		case *pipeline.UnknownStep:
+			// Presence of an unknown step means we're missing some semantic
+			// information about the pipeline. We could be not signing something
+			// that needs signing. Rather than deferring the problem (so that
+			// signature verification fails when an agent runs jobs) we return
+			// an error now.
+			return errSigningRefusedUnknownStepType
+		}
+	}
+	return nil
 }
