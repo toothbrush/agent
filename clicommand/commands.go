@@ -109,6 +109,7 @@ var BuildkiteAgentCommands = []cli.Command{
 		Subcommands: []cli.Command{
 			ToolKeygenCommand,
 			ToolSignCommand,
+			ToolUnSignCommand,
 		},
 	},
 }
