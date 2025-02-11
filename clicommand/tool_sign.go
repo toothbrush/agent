@@ -446,14 +446,12 @@ func SignSteps(ctx context.Context, s pipeline.Steps, key signature.Key, repoURL
 	for _, step := range s {
 		switch step := step.(type) {
 		case *pipeline.CommandStep:
+			step.Command = strings.ReplaceAll(step.Command, "buildkite-signed-pipeline", "buildkite-agent pipeline")
+
 			stepWithInvariants := &signature.CommandStepWithInvariants{
 				CommandStep:   *step,
 				RepositoryURL: repoURL,
 			}
-
-			fmt.Printf("stepWithInvariants.CommandStep.Command: %v\n", stepWithInvariants.CommandStep.Command)
-
-			step.Command = strings.ReplaceAll(step.Command, "buildkite-signed-pipeline", "buildkite-agent pipeline")
 
 			fmt.Printf("stepWithInvariants.CommandStep.Command: %v\n", stepWithInvariants.CommandStep.Command)
 
