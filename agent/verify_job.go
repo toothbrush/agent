@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/toothbrush/go-pipeline/signature"
 	"github.com/gowebpki/jcs"
+	"github.com/toothbrush/go-pipeline/signature"
 )
 
 var (
@@ -36,6 +36,7 @@ func (e *invalidSignatureError) Unwrap() error {
 
 func (r *JobRunner) verifyJob(ctx context.Context, keySet any) error {
 	step := r.conf.Job.Step
+	fmt.Printf("step: %v\n", step)
 
 	if step.Signature == nil {
 		r.agentLogger.Debug("verifyJob: Job.Step.Signature == nil")
@@ -46,6 +47,7 @@ func (r *JobRunner) verifyJob(ctx context.Context, keySet any) error {
 		CommandStep:   step,
 		RepositoryURL: r.conf.Job.Env["BUILDKITE_REPO"],
 	}
+	fmt.Printf("stepWithInvariants: %v\n", stepWithInvariants)
 
 	// Verify the signature
 	err := signature.Verify(
