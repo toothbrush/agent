@@ -39,7 +39,7 @@ require (
 	github.com/puzpuzpuz/xsync/v2 v2.5.1
 	github.com/qri-io/jsonschema v0.2.1
 	github.com/stretchr/testify v1.10.0
-	github.com/toothbrush/go-pipeline v0.13.3-0.20250213054207-adccdaf6f084
+	github.com/toothbrush/go-pipeline v0.13.3-0.20250213054802-9a1c2f95833d
 	github.com/urfave/cli v1.22.16
 	go.opentelemetry.io/contrib/propagators/aws v1.34.0
 	go.opentelemetry.io/contrib/propagators/b3 v1.34.0
