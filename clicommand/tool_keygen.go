@@ -7,7 +7,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/buildkite/go-pipeline/jwkutil"
+	"github.com/toothbrush/go-pipeline/jwkutil"
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/urfave/cli"

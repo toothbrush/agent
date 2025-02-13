@@ -9,8 +9,8 @@ import (
 	"github.com/buildkite/agent/v3/env"
 	"github.com/buildkite/agent/v3/internal/experiments"
 	"github.com/buildkite/agent/v3/logger"
-	"github.com/buildkite/go-pipeline"
-	"github.com/buildkite/go-pipeline/ordered"
+	"github.com/toothbrush/go-pipeline"
+	"github.com/toothbrush/go-pipeline/ordered"
 	"github.com/google/go-cmp/cmp"
 	"gotest.tools/v3/assert"
 )

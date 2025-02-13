@@ -11,9 +11,9 @@ import (
 	"github.com/buildkite/agent/v3/internal/bkgql"
 	"github.com/buildkite/agent/v3/internal/stdin"
 	"github.com/buildkite/agent/v3/logger"
-	"github.com/buildkite/go-pipeline"
-	"github.com/buildkite/go-pipeline/signature"
-	"github.com/buildkite/go-pipeline/warning"
+	"github.com/toothbrush/go-pipeline"
+	"github.com/toothbrush/go-pipeline/signature"
+	"github.com/toothbrush/go-pipeline/warning"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v3"
 )

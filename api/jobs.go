@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/buildkite/go-pipeline"
+	"github.com/toothbrush/go-pipeline"
 )
 
 // Job represents a Buildkite Agent API Job

@@ -7,7 +7,7 @@ import (
 	"github.com/buildkite/agent/v3/agent"
 	"github.com/buildkite/agent/v3/api"
 	"github.com/buildkite/bintest/v3"
-	"github.com/buildkite/go-pipeline"
+	"github.com/toothbrush/go-pipeline"
 )
 
 func TestWhenCachePathsSetInJobStep_CachePathsEnvVarIsSet(t *testing.T) {

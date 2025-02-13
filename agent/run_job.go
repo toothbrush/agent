@@ -21,7 +21,7 @@ import (
 	"github.com/buildkite/agent/v3/metrics"
 	"github.com/buildkite/agent/v3/process"
 	"github.com/buildkite/agent/v3/status"
-	"github.com/buildkite/go-pipeline"
+	"github.com/toothbrush/go-pipeline"
 )
 
 const (
