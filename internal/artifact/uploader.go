@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"drjosh.dev/zzglob"
+	"github.com/DrJosh9000/zzglob"
 	"github.com/buildkite/agent/v3/api"
 	"github.com/buildkite/agent/v3/internal/experiments"
 	"github.com/buildkite/agent/v3/internal/mime"

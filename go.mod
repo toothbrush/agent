@@ -6,10 +6,10 @@ toolchain go1.23.3
 
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
-	drjosh.dev/zzglob v0.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.0
 	github.com/DataDog/datadog-go/v5 v5.6.0
+	github.com/DrJosh9000/zzglob v0.3.4
 	github.com/Khan/genqlient v0.8.0
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/aws/aws-sdk-go-v2 v1.36.0
