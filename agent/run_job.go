@@ -136,6 +136,7 @@ func (r *JobRunner) Run(ctx context.Context) error {
 			l := r.agentLogger.WithFields(logger.StringField("jobID", job.ID), logger.StringField("signature", job.Step.Signature.Value))
 			l.Info("Successfully verified job")
 			fmt.Fprintln(r.jobLogs, "~~~ ✅ Job signature verified")
+			fmt.Fprintln(r.jobLogs, "~~~ 🥵 Bleeding-edge buildkite-agent active!")
 			fmt.Fprintf(r.jobLogs, "signature: %s\n", job.Step.Signature.Value)
 		}
 	}
